@@ -1,25 +1,12 @@
-# License-Plate-Recognition
-Toy Project
+# 项目重启
 
-This is my first toy project on Picture Reconition
+本项目目标
+1. 给定清晰特写照片，识别车牌文字
+2. 给定远景照片，识别车牌位置以及文字
+3. 给定视频片段，识别车牌位置以及文字
+4. 实时挂载行车记录仪，实时计算
 
-Start at 2021.02.27
+## 时间规划
+截止2023年10月12日全部完成
 
-Step1：With Numpy;    
-
-Step2：With Keras;
-
-Step3：With OpenCV or sth; 
-
-Step4：Hardware;
-
-Schedule :
-
-Step1  2021.03.31
-
-Step2  2021.04.30
-
-Step3  2021.05.31
-
-Step4  2021.06.30
-
+2022年10月12日前完成1，2项
