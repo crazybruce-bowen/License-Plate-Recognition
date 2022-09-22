@@ -3,18 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="fe4e4138-7519-4526-9340-968cbc285711" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/License-Plate-Recognition.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea_bk/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea_bk/codeStyles/Project.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea_bk/codeStyles/codeStyleConfig.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea_bk/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea_bk/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea_bk/runConfigurations.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea_bk/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea_bk/车牌识别.iml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/data/参考代码/License-Plate-Recognition-1/predict.py" beforeDir="false" afterPath="$PROJECT_DIR$/data/参考代码/License-Plate-Recognition-1/predict.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
