@@ -2,6 +2,6 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/参考代码/yolov5" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/data/参考代码/License-Plate-Recognition-1" vcs="Git" />
   </component>
 </project>
