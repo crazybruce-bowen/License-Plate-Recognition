@@ -1,16 +1,46 @@
-
-import argparse
+# basic method
 import torch
+import os
+import shutil
+import random
+import time
+import cv2
+from pathlib import Path
+import sys
+# utils method
+import utils.torch_utils as torch_utils
+import utils.google_utils as google_utils
+import utils.common_utils as common_utils
+
+from utils.datasets import LoadStreams, LoadImages
 
 
 def detect(save_img=False, **kwargs):
-    out = kwargs.get('out', 'inference/output')
-    out, source, weights, view_img, save_txt, imgsz = \
-        opt.output, opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
+    """
+
+    :param save_img:
+    :param kwargs: 参数包，详见下方解释
+    :return:
+    """
+    # 参数捕获
+    out = kwargs.get('output', 'inference/output')  # Str: 输出路径
+    source = kwargs.get('source', 'images/test_BW')  # Str: 检测路径 文件夹
+    weights = kwargs.get('weights', 'weights/last.pt')  # Str: 最终训练模型系数
+    save_txt = kwargs.get('save_txt', False)  # Bool: 是否保存文档
+    imgsz = kwargs.get('imgsz', 640)  # Int: 图像大小
+    device = kwargs.get('device', '')  # Str: 使用cpu/gpu 详见select_device函数
+    iou_thres = kwargs.get('iou_thres', 0.5)  # Float: 交叉占比限制，超过限制的交叉方框删除
+    conf_thres = kwargs.get('conf_thres', 0.4)  # Float: 筛选方框置信度
+    classes = kwargs.get('classes', list())  # List: 仅预测特定类，传list
+    augment = kwargs.get('augment', False)  # Bool
+    agnostic_nms = kwargs.get('agnostic_nms', False)  # Bool: 详见详见non_max_suppression
+    fourcc = kwargs.get('fourcc', 'mp4v')
+    view_img = kwargs.get('view_img', False)  # 是否查看图片
+
     webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
 
-    # Initializehow pytorch use yaml file
-    device = torch_utils.select_device(opt.device)
+    # Initialize pytorch use yaml file
+    device = torch_utils.select_device(device)
     if os.path.exists(out):
         shutil.rmtree(out)  # delete output folder
     os.makedirs(out)  # make new output folder
@@ -63,16 +93,16 @@ def detect(save_img=False, **kwargs):
 
         # Inference
         t1 = torch_utils.time_synchronized()
-        pred = model(img, augment=opt.augment)[0]
+        pred = model(img, augment=augment)[0]
 
         # Apply NMS
-        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres,
-                                   fast=True, classes=opt.classes, agnostic=opt.agnostic_nms)
+        pred = common_utils.non_max_suppression(pred, conf_thres, iou_thres,
+                                                fast=True, classes=classes, agnostic=agnostic_nms)
         t2 = torch_utils.time_synchronized()
 
         # Apply Classifier
         if classify:
-            pred = apply_classifier(pred, modelc, img, im0s)
+            pred = common_utils.apply_classifier(pred, modelc, img, im0s)
 
         # Process detections
         for i, det in enumerate(pred):  # detections per image
@@ -86,7 +116,7 @@ def detect(save_img=False, **kwargs):
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  #  normalization gain whwh
             if det is not None and len(det):
                 # Rescale boxes from img_size to im0 size
-                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+                det[:, :4] = common_utils.scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
                 # Print results
                 for c in det[:, -1].unique():
@@ -96,13 +126,13 @@ def detect(save_img=False, **kwargs):
                 # Write results
                 for *xyxy, conf, cls in det:
                     if save_txt:  # Write to file
-                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                        xywh = (common_utils.xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         with open(save_path[:save_path.rfind('.')] + '.txt', 'a') as file:
                             file.write(('%g ' * 5 + '\n') % (cls, *xywh))  # label format
 
                     if save_img or view_img:  # Add bbox to image
                         label = '%s %.2f' % (names[int(cls)], conf)
-                        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
+                        common_utils.plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
 
             # Print time (inference + NMS)
             print('%sDone. (%.3fs)' % (s, t2 - t1))
@@ -127,35 +157,20 @@ def detect(save_img=False, **kwargs):
                         fps = vid_cap.get(cv2.CAP_PROP_FPS)
                         w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                         h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*opt.fourcc), fps, (w, h))
+                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w, h))
                     vid_writer.write(im0)
 
     if save_txt or save_img:
         print('Results saved to %s' % os.getcwd() + os.sep + out)
-        if platform == 'darwin':  # MacOS
+        if sys.platform == 'darwin':  # MacOS
             os.system('open ' + save_path)
 
     print('Done. (%.3fs)' % (time.time() - t0))
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='weights/last.pt', help='model.pt path')
-    parser.add_argument('--source', type=str, default='data/images/test_BW', help='source')  # file/folder, 0 for webcam
-    parser.add_argument('--output', type=str, default='inference/output', help='output folder')  # output folder
-    parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
-    parser.add_argument('--conf-thres', type=float, default=0.4, help='object confidence threshold')
-    parser.add_argument('--iou-thres', type=float, default=0.5, help='IOU threshold for NMS')
-    parser.add_argument('--fourcc', type=str, default='mp4v', help='output video codec (verify ffmpeg support)')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--view-img', action='store_true', help='display results')
-    parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
-    parser.add_argument('--classes', nargs='+', type=int, help='filter by class')
-    parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
-    parser.add_argument('--augment', action='store_true', help='augmented inference')
-    opt = parser.parse_args()
-    opt.img_size = check_img_size(opt.img_size)
-    print(opt)
-
+    # 检查图像大小
+    pass
+    # 运行
     with torch.no_grad():
         detect()

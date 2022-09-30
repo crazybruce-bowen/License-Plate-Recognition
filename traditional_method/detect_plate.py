@@ -22,6 +22,7 @@ import numpy as np
 
 def my_img_read(path, grey=True, width=480):
     """
+    读取图像
 
     :param path: str 图像路径
     :param grey: bool 是否将图像转为灰度
