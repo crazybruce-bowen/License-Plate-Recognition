@@ -12,8 +12,8 @@
 ## 代码结构
 >- fancy_method （YOLO方式完成功能）
 >- traditional_method （传统图像处理方式完成功能）
->  - detect_plate （检测车牌位置）
->  - recognize_number （识别车牌文字）
+>   - detect_plate （检测车牌位置）
+>   - recognize_number （识别车牌文字）
 >- test （测试区）
 >- utils （工具区）
 
