@@ -10,11 +10,11 @@
 >4. 实时挂载行车记录仪，实时计算
 
 ## 代码结构
-- fancy_method （YOLO方式完成功能）
-- traditional_method （传统图像处理方式完成功能）
-  - detect_plate （检测车牌位置）
-  - recognize_number （识别车牌文字）
-- test （测试区）
-- utils （工具区）
+>- fancy_method （YOLO方式完成功能）
+>- traditional_method （传统图像处理方式完成功能）
+>  - detect_plate （检测车牌位置）
+>  - recognize_number （识别车牌文字）
+>- test （测试区）
+>- utils （工具区）
 
 <p align="right"> 作者： 李博文
