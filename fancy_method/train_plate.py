@@ -1,5 +1,4 @@
 # Basic func
-import argparse
 import os
 import numpy as np
 import torch
@@ -65,13 +64,13 @@ def train(hyp, **kwargs):
     cfg = common_utils.check_file(cfg)  # check file
     data = common_utils.check_file(data)  # check file
     img_size.extend([img_size[-1]] * (2 - len(img_size)))  # extend to 2 sizes (train, test)
-    device = torch_utils.select_device( device, apex=mixed_precision, batch_size=batch_size)
+    device = torch_utils.select_device(device, apex=mixed_precision, batch_size=batch_size)
     if device.type == 'cpu':
         mixed_precision = False
 
     # Configure
     common_utils.init_seeds(1)
-    with open( data) as f:
+    with open(data) as f:
         data_dict = yaml.load(f, Loader=yaml.FullLoader)  # model dict
     train_path = data_dict['train']
     test_path = data_dict['val']
@@ -82,12 +81,12 @@ def train(hyp, **kwargs):
         os.remove(f)
 
     # Create model
-    model = Model( cfg).to(device)
-    assert model.md['nc'] == nc, '%s nc=%g classes but %s nc=%g classes' % ( data, nc,  cfg, model.md['nc'])
+    model = Model(cfg).to(device)
+    assert model.md['nc'] == nc, '%s nc=%g classes but %s nc=%g classes' % (data, nc,  cfg, model.md['nc'])
 
     # Image sizes
     gs = int(max(model.stride))  # grid size (max stride)
-    imgsz, imgsz_test = [common_utils.check_img_size(x, gs) for x in  img_size]  # verify imgsz are gs-multiples
+    imgsz, imgsz_test = [common_utils.check_img_size(x, gs) for x in img_size]  # verify imgsz are gs-multiples
 
     # Optimizer
     nbs = 64  # nominal batch size
@@ -103,7 +102,7 @@ def train(hyp, **kwargs):
             else:
                 pg0.append(v)  # all else
 
-    optimizer = optim.Adam(pg0, lr=hyp['lr0']) if  adam else \
+    optimizer = optim.Adam(pg0, lr=hyp['lr0']) if adam else \
         optim.SGD(pg0, lr=hyp['lr0'], momentum=hyp['momentum'], nesterov=True)
     optimizer.add_param_group({'params': pg1, 'weight_decay': hyp['weight_decay']})  # add pg1 with weight_decay
     optimizer.add_param_group({'params': pg2})  # add pg2 (biases)
@@ -123,7 +122,7 @@ def train(hyp, **kwargs):
             model.load_state_dict(ckpt['model'], strict=False)
         except KeyError as e:
             s = "%s is not compatible with %s. Specify --weights '' or specify a --cfg compatible with %s." \
-                % ( weights,  cfg,  weights)
+                % (weights,  cfg,  weights)
             raise KeyError(s) from e
 
         # load optimizer
@@ -174,7 +173,7 @@ def train(hyp, **kwargs):
     dataloader = torch.utils.data.DataLoader(dataset,
                                              batch_size=batch_size,
                                              num_workers=nw,
-                                             shuffle=not  rect,  # Shuffle=True unless rectangular training is used
+                                             shuffle=not rect,  # Shuffle=True unless rectangular training is used
                                              pin_memory=True,
                                              collate_fn=dataset.collate_fn)
 
@@ -182,8 +181,8 @@ def train(hyp, **kwargs):
     testloader = torch.utils.data.DataLoader(LoadImagesAndLabels(test_path, imgsz_test, batch_size,
                                                                  hyp=hyp,
                                                                  rect=True,
-                                                                 cache_images= cache_images,
-                                                                 single_cls= single_cls),
+                                                                 cache_images=cache_images,
+                                                                 single_cls=single_cls),
                                              batch_size=batch_size,
                                              num_workers=nw,
                                              pin_memory=True,
@@ -207,7 +206,7 @@ def train(hyp, **kwargs):
         tb_writer.add_histogram('classes', c, 0)
 
     # Check anchors
-    if not  noautoanchor:
+    if not noautoanchor:
         common_utils.check_anchors(dataset, model=model, thr=hyp['anchor_t'], imgsz=imgsz)
 
     # Exponential moving average
@@ -251,7 +250,7 @@ def train(hyp, **kwargs):
                         x['momentum'] = np.interp(ni, xi, [0.9, hyp['momentum']])
 
             # Multi-scale
-            if  multi_scale:
+            if multi_scale:
                 sz = random.randrange(imgsz * 0.5, imgsz * 1.5 + gs) // gs * gs  # size
                 sf = sz / max(imgs.shape[2:])  # scale factor
                 if sf != 1:
@@ -303,21 +302,21 @@ def train(hyp, **kwargs):
         # mAP
         ema.update_attr(model)
         final_epoch = epoch + 1 == epochs
-        if not  notest or final_epoch:  # Calculate mAP
-            results, maps, times = test_plate.test( data,
-                                                    batch_size=batch_size,
-                                                    imgsz=imgsz_test,
-                                                    save_json=final_epoch and  data.endswith(os.sep + 'coco.yaml'),
-                                                    model=ema.ema,
-                                                    single_cls= single_cls,
-                                                    dataloader=testloader,
-                                                    fast=epoch < epochs / 2)
+        if not notest or final_epoch:  # Calculate mAP
+            results, maps, times = test_plate.test(data,
+                                                   batch_size=batch_size,
+                                                   imgsz=imgsz_test,
+                                                   save_json=final_epoch and data.endswith(os.sep + 'coco.yaml'),
+                                                   model=ema.ema,
+                                                   single_cls=single_cls,
+                                                   dataloader=testloader,
+                                                   fast=epoch < epochs / 2)
 
         # Write
         with open(results_file, 'a') as f:
             f.write(s + '%10.4g' * 7 % results + '\n')  # P, R, mAP, F1, test_losses=(GIoU, obj, cls)
-        if len( name) and  bucket:
-            os.system('gsutil cp results.txt gs://%s/results/results%s.txt' % ( bucket,  name))
+        if len(name) and bucket:
+            os.system('gsutil cp results.txt gs://%s/results/results%s.txt' % (bucket,  name))
 
         # Tensorboard
         if tb_writer:
@@ -333,7 +332,7 @@ def train(hyp, **kwargs):
             best_fitness = fi
 
         # Save model
-        save = (not  nosave) or (final_epoch and not  evolve)
+        save = (not nosave) or (final_epoch and not evolve)
         if save:
             with open(results_file, 'r') as f:  # create checkpoint
                 ckpt = {'epoch': epoch,
@@ -359,9 +358,9 @@ def train(hyp, **kwargs):
                 os.rename(f1, f2)  # rename
                 ispt = f2.endswith('.pt')  # is *.pt
                 common_utils.strip_optimizer(f2) if ispt else None  # strip optimizer
-                os.system('gsutil cp %s gs://%s/weights' % (f2,  bucket)) if  bucket and ispt else None  # upload
+                os.system('gsutil cp %s gs://%s/weights' % (f2,  bucket)) if bucket and ispt else None  # upload
 
-    if not  evolve:
+    if not evolve:
         common_utils.plot_results()  # save as results.png
     print('%g epochs completed in %.3f hours.\n' % (epoch - start_epoch + 1, (time.time() - t0) / 3600))
     dist.destroy_process_group() if device.type != 'cpu' and torch.cuda.device_count() > 1 else None
@@ -370,24 +369,7 @@ def train(hyp, **kwargs):
 
 
 if __name__ == '__main__':
-    """
-    !python train.py --img 640 --batch 8 --epochs 100 --data ./data/license_plate.yaml --cfg ./models/yolov5s.yaml --weights '' --device 0
-    """
-
-    mixed_precision = True
-    try:  # Mixed precision training https://github.com/NVIDIA/apex
-        from apex import amp
-    except:
-        print('Apex recommended for faster mixed precision training: https://github.com/NVIDIA/apex')
-        mixed_precision = False  # not installed
-
-    # wdir = 'weights' + os.sep  # weights dir
-    # os.makedirs(wdir, exist_ok=True)
-    # last = wdir + 'last.pt'
-    # best = wdir + 'best.pt'
-    # results_file = 'results.txt'
-
-    # Hyperparameters
+    # Hyper parameters
     hyp = {'lr0': 0.01,  # initial learning rate (SGD=1E-2, Adam=1E-3)
            'momentum': 0.937,  # SGD momentum
            'weight_decay': 5e-4,  # optimizer weight decay
