@@ -12,6 +12,14 @@ import yaml
 import math
 import time
 import random
+import sys
+
+#%%
+# test use
+path1 = r'D:\Learn\学习入口\大项目\车牌识别\MyProject'
+path2 = r'D:\Learn\学习入口\大项目\车牌识别\MyProject\fancy_method'
+sys.path.append(path1)
+sys.path.append(path2)
 
 # My func
 import test_plate  # import test.py to get mAP after each epoch
@@ -21,7 +29,7 @@ import utils.google_utils as google_utils
 import utils.torch_utils as torch_utils
 from utils.datasets import LoadImagesAndLabels
 
-
+#%%
 # def train(hyp):
 def train(hyp, **kwargs):
     # 参数捕获
@@ -368,6 +376,7 @@ def train(hyp, **kwargs):
     return results
 
 
+#%%
 if __name__ == '__main__':
     # Hyper parameters
     hyp = {'lr0': 0.01,  # initial learning rate (SGD=1E-2, Adam=1E-3)
