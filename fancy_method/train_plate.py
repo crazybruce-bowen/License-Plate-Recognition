@@ -29,6 +29,7 @@ import utils.google_utils as google_utils
 import utils.torch_utils as torch_utils
 from utils.datasets import LoadImagesAndLabels
 
+
 #%%
 # def train(hyp):
 def train(hyp, **kwargs):
@@ -49,7 +50,7 @@ def train(hyp, **kwargs):
     cache_images = kwargs.get('cache_images', False)  # Bool：是否提前缓存图片到内存，开启会加快训练速度
     weights = kwargs.get('weights', '')  # Str：初始化预训练权重路径 为空则从头训练
     name = kwargs.get('name', '')  # Str：重命名输出结果
-    device = kwargs.get('device', 0)  # Int/Str：Cuda device 0, 1, 2, 3 or cpu or ''
+    device = kwargs.get('device', 'cpu')  # Str：Cuda device 0, 1, 2, 3 or cpu or ''
     adam = kwargs.get('adam', False)  # Bool：是否使用Adam优化器
     multi_scale = kwargs.get('multi_scale', False)  # Bool：是否启用多尺度训练（开启后随机调整图像尺度进行训练，更稳定）
     single_cls = kwargs.get('single-cls', False)  # Bool：是否是单类别训练

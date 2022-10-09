@@ -5,3 +5,7 @@ reference
 fancy_method/images
 fancy_method/inference
 /data
+images
+weights
+__pycache__
+.vs
