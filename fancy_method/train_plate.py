@@ -1,5 +1,4 @@
 # Basic func
-import argparse
 import os
 import numpy as np
 import torch
@@ -13,6 +12,14 @@ import yaml
 import math
 import time
 import random
+import sys
+
+#%%
+# test use
+path1 = r'D:\Learn\学习入口\大项目\车牌识别\MyProject'
+path2 = r'D:\Learn\学习入口\大项目\车牌识别\MyProject\fancy_method'
+sys.path.append(path1)
+sys.path.append(path2)
 
 # My func
 import test_plate  # import test.py to get mAP after each epoch
@@ -22,76 +29,73 @@ import utils.google_utils as google_utils
 import utils.torch_utils as torch_utils
 from utils.datasets import LoadImagesAndLabels
 
-mixed_precision = True
-try:  # Mixed precision training https://github.com/NVIDIA/apex
-    from apex import amp
-except:
-    print('Apex recommended for faster mixed precision training: https://github.com/NVIDIA/apex')
-    mixed_precision = False  # not installed
 
-wdir = 'weights' + os.sep  # weights dir
-os.makedirs(wdir, exist_ok=True)
-last = wdir + 'last.pt'
-best = wdir + 'best.pt'
-results_file = 'results.txt'
+#%%
+# def train(hyp):
+def train(hyp, **kwargs):
+    # 参数捕获
+    # data = kwargs.get('')
+    epochs = kwargs.get('epochs', 100)  # Int：迭代次数
+    batch_size = kwargs.get('batch_size', 8)  # Int：分组大小
+    cfg = kwargs.get('cfg', 'models/yolov5s.yaml')  # Str：模型配置路径
+    data = kwargs.get('data', 'data/license_plate.yaml')  # Str：数据yaml文件路径
+    img_size = kwargs.get('img_size', [640])  # [Int]：训练，预测图像大小
+    rect = kwargs.get('rect', False)  # Bool：是否非正方形训练（即删除图像扩充成正方形时的灰色填充部分）
+    resume = kwargs.get('resume', False)  # Bool：是否从上次训练点继续训练 last.pt
+    nosave = kwargs.get('nosave', False)  # Bool：是否只储存最终训练点。默认保存best和last两个点
+    notest = kwargs.get('notest', False)  # Bool：是否只测试最后一次传播
+    noautoanchor = kwargs.get('noautoanchor', False)  # Bool：是否禁用自动描点（自动描点为初始化检测框，有助于加速训练）
+    evolve = kwargs.get('evolve', False)  # Bool：是否使用遗传参数（yolo5默认参数）
+    bucket = kwargs.get('bucket', '')  # Str：谷歌云盘，默认不用
+    cache_images = kwargs.get('cache_images', False)  # Bool：是否提前缓存图片到内存，开启会加快训练速度
+    weights = kwargs.get('weights', '')  # Str：初始化预训练权重路径 为空则从头训练
+    name = kwargs.get('name', '')  # Str：重命名输出结果
+    device = kwargs.get('device', 'cpu')  # Str：Cuda device 0, 1, 2, 3 or cpu or ''
+    adam = kwargs.get('adam', False)  # Bool：是否使用Adam优化器
+    multi_scale = kwargs.get('multi_scale', False)  # Bool：是否启用多尺度训练（开启后随机调整图像尺度进行训练，更稳定）
+    single_cls = kwargs.get('single-cls', False)  # Bool：是否是单类别训练
+    wdir = kwargs.get('wdir', 'weights' + os.sep)  # Str：weights 路径
+    last = kwargs.get('last', wdir + 'last.pt')  # Str：last.pt默认路径
+    best = kwargs.get('best', wdir + 'best.pt')  # Str：best.pt默认路径
+    results_file = kwargs.get('results_file', 'results.txt')  # Str：结果文件默认路径
 
-# Hyperparameters
-hyp = {'lr0': 0.01,  # initial learning rate (SGD=1E-2, Adam=1E-3)
-       'momentum': 0.937,  # SGD momentum
-       'weight_decay': 5e-4,  # optimizer weight decay
-       'giou': 0.05,  # giou loss gain
-       'cls': 0.58,  # cls loss gain
-       'cls_pw': 1.0,  # cls BCELoss positive_weight
-       'obj': 1.0,  # obj loss gain (*=img_size/320 if img_size != 320)
-       'obj_pw': 1.0,  # obj BCELoss positive_weight
-       'iou_t': 0.20,  # iou training threshold
-       'anchor_t': 4.0,  # anchor-multiple threshold
-       'fl_gamma': 0.0,  # focal loss gamma (efficientDet default is gamma=1.5)
-       'hsv_h': 0.014,  # image HSV-Hue augmentation (fraction)
-       'hsv_s': 0.68,  # image HSV-Saturation augmentation (fraction)
-       'hsv_v': 0.36,  # image HSV-Value augmentation (fraction)
-       'degrees': 0.0,  # image rotation (+/- deg)
-       'translate': 0.0,  # image translation (+/- fraction)
-       'scale': 0.5,  # image scale (+/- gain)
-       'shear': 0.0}  # image shear (+/- deg)
-print(hyp)
+    # 参数操作
+    mixed_precision = True
+    try:  # Mixed precision training https://github.com/NVIDIA/apex
+        from apex import amp
+    except:
+        print('Apex recommended for faster mixed precision training: https://github.com/NVIDIA/apex')
+        mixed_precision = False  # not installed
 
-# Overwrite hyp with hyp*.txt (optional)
-f = glob.glob('hyp*.txt')
-if f:
-    print('Using %s' % f[0])
-    for k, v in zip(hyp.keys(), np.loadtxt(f[0])):
-        hyp[k] = v
+    os.makedirs(wdir, exist_ok=True)
 
-# Print focal loss if gamma > 0
-if hyp['fl_gamma']:
-    print('Using FocalLoss(gamma=%g)' % hyp['fl_gamma'])
-
-
-def train(hyp):
-    epochs = opt.epochs  # 300
-    batch_size = opt.batch_size  # 64
-    weights = opt.weights  # initial training weights
+    weights = last if resume else weights
+    cfg = common_utils.check_file(cfg)  # check file
+    data = common_utils.check_file(data)  # check file
+    img_size.extend([img_size[-1]] * (2 - len(img_size)))  # extend to 2 sizes (train, test)
+    device = torch_utils.select_device(device, apex=mixed_precision, batch_size=batch_size)
+    if device.type == 'cpu':
+        mixed_precision = False
 
     # Configure
     common_utils.init_seeds(1)
-    with open(opt.data) as f:
+    with open(data) as f:
         data_dict = yaml.load(f, Loader=yaml.FullLoader)  # model dict
     train_path = data_dict['train']
     test_path = data_dict['val']
-    nc = 1 if opt.single_cls else int(data_dict['nc'])  # number of classes
+    nc = 1 if single_cls else int(data_dict['nc'])  # number of classes
 
     # Remove previous results
     for f in glob.glob('*_batch*.jpg') + glob.glob(results_file):
         os.remove(f)
 
     # Create model
-    model = Model(opt.cfg).to(device)
-    assert model.md['nc'] == nc, '%s nc=%g classes but %s nc=%g classes' % (opt.data, nc, opt.cfg, model.md['nc'])
+    model = Model(cfg).to(device)
+    assert model.md['nc'] == nc, '%s nc=%g classes but %s nc=%g classes' % (data, nc,  cfg, model.md['nc'])
 
     # Image sizes
     gs = int(max(model.stride))  # grid size (max stride)
-    imgsz, imgsz_test = [common_utils.check_img_size(x, gs) for x in opt.img_size]  # verify imgsz are gs-multiples
+    imgsz, imgsz_test = [common_utils.check_img_size(x, gs) for x in img_size]  # verify imgsz are gs-multiples
 
     # Optimizer
     nbs = 64  # nominal batch size
@@ -107,7 +111,7 @@ def train(hyp):
             else:
                 pg0.append(v)  # all else
 
-    optimizer = optim.Adam(pg0, lr=hyp['lr0']) if opt.adam else \
+    optimizer = optim.Adam(pg0, lr=hyp['lr0']) if adam else \
         optim.SGD(pg0, lr=hyp['lr0'], momentum=hyp['momentum'], nesterov=True)
     optimizer.add_param_group({'params': pg1, 'weight_decay': hyp['weight_decay']})  # add pg1 with weight_decay
     optimizer.add_param_group({'params': pg2})  # add pg2 (biases)
@@ -127,7 +131,7 @@ def train(hyp):
             model.load_state_dict(ckpt['model'], strict=False)
         except KeyError as e:
             s = "%s is not compatible with %s. Specify --weights '' or specify a --cfg compatible with %s." \
-                % (opt.weights, opt.cfg, opt.weights)
+                % (weights,  cfg,  weights)
             raise KeyError(s) from e
 
         # load optimizer
@@ -166,11 +170,11 @@ def train(hyp):
     dataset = LoadImagesAndLabels(train_path, imgsz, batch_size,
                                   augment=True,
                                   hyp=hyp,  # augmentation hyperparameters
-                                  rect=opt.rect,  # rectangular training
-                                  cache_images=opt.cache_images,
-                                  single_cls=opt.single_cls)
+                                  rect=rect,  # rectangular training
+                                  cache_images=cache_images,
+                                  single_cls=single_cls)
     mlc = np.concatenate(dataset.labels, 0)[:, 0].max()  # max label class
-    assert mlc < nc, 'Label class %g exceeds nc=%g in %s. Correct your labels or your model.' % (mlc, nc, opt.cfg)
+    assert mlc < nc, 'Label class %g exceeds nc=%g in %s. Correct your labels or your model.' % (mlc, nc,  cfg)
 
     # Dataloader
     batch_size = min(batch_size, len(dataset))
@@ -178,7 +182,7 @@ def train(hyp):
     dataloader = torch.utils.data.DataLoader(dataset,
                                              batch_size=batch_size,
                                              num_workers=nw,
-                                             shuffle=not opt.rect,  # Shuffle=True unless rectangular training is used
+                                             shuffle=not rect,  # Shuffle=True unless rectangular training is used
                                              pin_memory=True,
                                              collate_fn=dataset.collate_fn)
 
@@ -186,8 +190,8 @@ def train(hyp):
     testloader = torch.utils.data.DataLoader(LoadImagesAndLabels(test_path, imgsz_test, batch_size,
                                                                  hyp=hyp,
                                                                  rect=True,
-                                                                 cache_images=opt.cache_images,
-                                                                 single_cls=opt.single_cls),
+                                                                 cache_images=cache_images,
+                                                                 single_cls=single_cls),
                                              batch_size=batch_size,
                                              num_workers=nw,
                                              pin_memory=True,
@@ -211,7 +215,7 @@ def train(hyp):
         tb_writer.add_histogram('classes', c, 0)
 
     # Check anchors
-    if not opt.noautoanchor:
+    if not noautoanchor:
         common_utils.check_anchors(dataset, model=model, thr=hyp['anchor_t'], imgsz=imgsz)
 
     # Exponential moving average
@@ -255,7 +259,7 @@ def train(hyp):
                         x['momentum'] = np.interp(ni, xi, [0.9, hyp['momentum']])
 
             # Multi-scale
-            if opt.multi_scale:
+            if multi_scale:
                 sz = random.randrange(imgsz * 0.5, imgsz * 1.5 + gs) // gs * gs  # size
                 sf = sz / max(imgs.shape[2:])  # scale factor
                 if sf != 1:
@@ -307,21 +311,21 @@ def train(hyp):
         # mAP
         ema.update_attr(model)
         final_epoch = epoch + 1 == epochs
-        if not opt.notest or final_epoch:  # Calculate mAP
-            results, maps, times = test_plate.test(opt.data,
+        if not notest or final_epoch:  # Calculate mAP
+            results, maps, times = test_plate.test(data,
                                                    batch_size=batch_size,
                                                    imgsz=imgsz_test,
-                                                   save_json=final_epoch and opt.data.endswith(os.sep + 'coco.yaml'),
+                                                   save_json=final_epoch and data.endswith(os.sep + 'coco.yaml'),
                                                    model=ema.ema,
-                                                   single_cls=opt.single_cls,
+                                                   single_cls=single_cls,
                                                    dataloader=testloader,
                                                    fast=epoch < epochs / 2)
 
         # Write
         with open(results_file, 'a') as f:
             f.write(s + '%10.4g' * 7 % results + '\n')  # P, R, mAP, F1, test_losses=(GIoU, obj, cls)
-        if len(opt.name) and opt.bucket:
-            os.system('gsutil cp results.txt gs://%s/results/results%s.txt' % (opt.bucket, opt.name))
+        if len(name) and bucket:
+            os.system('gsutil cp results.txt gs://%s/results/results%s.txt' % (bucket,  name))
 
         # Tensorboard
         if tb_writer:
@@ -337,7 +341,7 @@ def train(hyp):
             best_fitness = fi
 
         # Save model
-        save = (not opt.nosave) or (final_epoch and not opt.evolve)
+        save = (not nosave) or (final_epoch and not evolve)
         if save:
             with open(results_file, 'r') as f:  # create checkpoint
                 ckpt = {'epoch': epoch,
@@ -354,8 +358,7 @@ def train(hyp):
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training
-
-    n = opt.name
+    n = name
     if len(n):
         n = '_' + n if not n.isnumeric() else n
         fresults, flast, fbest = 'results%s.txt' % n, wdir + 'last%s.pt' % n, wdir + 'best%s.pt' % n
@@ -364,9 +367,9 @@ def train(hyp):
                 os.rename(f1, f2)  # rename
                 ispt = f2.endswith('.pt')  # is *.pt
                 common_utils.strip_optimizer(f2) if ispt else None  # strip optimizer
-                os.system('gsutil cp %s gs://%s/weights' % (f2, opt.bucket)) if opt.bucket and ispt else None  # upload
+                os.system('gsutil cp %s gs://%s/weights' % (f2,  bucket)) if bucket and ispt else None  # upload
 
-    if not opt.evolve:
+    if not evolve:
         common_utils.plot_results()  # save as results.png
     print('%g epochs completed in %.3f hours.\n' % (epoch - start_epoch + 1, (time.time() - t0) / 3600))
     dist.destroy_process_group() if device.type != 'cpu' and torch.cuda.device_count() > 1 else None
@@ -374,91 +377,41 @@ def train(hyp):
     return results
 
 
+#%%
 if __name__ == '__main__':
-    """
-    !python train.py --img 640 --batch 8 --epochs 100 --data ./data/license_plate.yaml --cfg ./models/yolov5s.yaml --weights '' --device 0
-    """
-    common_utils.check_git_status()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', type=int, default=300)
-    parser.add_argument('--batch-size', type=int, default=16)
-    parser.add_argument('--cfg', type=str, default='models/yolov5s.yaml', help='*.cfg path')
-    parser.add_argument('--data', type=str, default='data/coco128.yaml', help='*.data path')
-    parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='train,test sizes')
-    parser.add_argument('--rect', action='store_true', help='rectangular training')
-    parser.add_argument('--resume', action='store_true', help='resume training from last.pt')
-    parser.add_argument('--nosave', action='store_true', help='only save final checkpoint')
-    parser.add_argument('--notest', action='store_true', help='only test final epoch')
-    parser.add_argument('--noautoanchor', action='store_true', help='disable autoanchor check')
-    parser.add_argument('--evolve', action='store_true', help='evolve hyperparameters')
-    parser.add_argument('--bucket', type=str, default='', help='gsutil bucket')
-    parser.add_argument('--cache-images', action='store_true', help='cache images for faster training')
-    parser.add_argument('--weights', type=str, default='', help='initial weights path')
-    parser.add_argument('--name', default='', help='renames results.txt to results_name.txt if supplied')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--adam', action='store_true', help='use adam optimizer')
-    parser.add_argument('--multi-scale', action='store_true', help='vary img-size +/- 50%')
-    parser.add_argument('--single-cls', action='store_true', help='train as single-class dataset')
-    opt = parser.parse_args()
-    opt.weights = last if opt.resume else opt.weights
-    opt.cfg = common_utils.check_file(opt.cfg)  # check file
-    opt.data = common_utils.check_file(opt.data)  # check file
-    print(opt)
-    opt.img_size.extend([opt.img_size[-1]] * (2 - len(opt.img_size)))  # extend to 2 sizes (train, test)
-    device = torch_utils.select_device(opt.device, apex=mixed_precision, batch_size=opt.batch_size)
-    if device.type == 'cpu':
-        mixed_precision = False
+    # Hyper parameters
+    hyp = {'lr0': 0.01,  # initial learning rate (SGD=1E-2, Adam=1E-3)
+           'momentum': 0.937,  # SGD momentum
+           'weight_decay': 5e-4,  # optimizer weight decay
+           'giou': 0.05,  # giou loss gain
+           'cls': 0.58,  # cls loss gain
+           'cls_pw': 1.0,  # cls BCELoss positive_weight
+           'obj': 1.0,  # obj loss gain (*=img_size/320 if img_size != 320)
+           'obj_pw': 1.0,  # obj BCELoss positive_weight
+           'iou_t': 0.20,  # iou training threshold
+           'anchor_t': 4.0,  # anchor-multiple threshold
+           'fl_gamma': 0.0,  # focal loss gamma (efficientDet default is gamma=1.5)
+           'hsv_h': 0.014,  # image HSV-Hue augmentation (fraction)
+           'hsv_s': 0.68,  # image HSV-Saturation augmentation (fraction)
+           'hsv_v': 0.36,  # image HSV-Value augmentation (fraction)
+           'degrees': 0.0,  # image rotation (+/- deg)
+           'translate': 0.0,  # image translation (+/- fraction)
+           'scale': 0.5,  # image scale (+/- gain)
+           'shear': 0.0}  # image shear (+/- deg)
+    print('------ hyper parameters ------', hyp)
+
+    # Overwrite hyp with hyp*.txt (optional)
+    f = glob.glob('hyp*.txt')
+    if f:
+        print('Using %s' % f[0])
+        for k, v in zip(hyp.keys(), np.loadtxt(f[0])):
+            hyp[k] = v
+
+    # Print focal loss if gamma > 0
+    if hyp['fl_gamma']:
+        print('Using FocalLoss(gamma=%g)' % hyp['fl_gamma'])
 
     # Train
-    if not opt.evolve:
-        tb_writer = SummaryWriter(comment=opt.name)
-        print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
-        train(hyp)
-
-    # Evolve hyperparameters (optional)
-    else:
-        tb_writer = None
-        opt.notest, opt.nosave = True, True  # only test/save final epoch
-        if opt.bucket:
-            os.system('gsutil cp gs://%s/evolve.txt .' % opt.bucket)  # download evolve.txt if exists
-
-        for _ in range(10):  # generations to evolve
-            if os.path.exists('evolve.txt'):  # if evolve.txt exists: select best hyps and mutate
-                # Select parent(s)
-                parent = 'single'  # parent selection method: 'single' or 'weighted'
-                x = np.loadtxt('evolve.txt', ndmin=2)
-                n = min(5, len(x))  # number of previous results to consider
-                x = x[np.argsort(-common_utils.fitness(x))][:n]  # top n mutations
-                w = common_utils.fitness(x) - common_utils.fitness(x).min()  # weights
-                if parent == 'single' or len(x) == 1:
-                    # x = x[random.randint(0, n - 1)]  # random selection
-                    x = x[random.choices(range(n), weights=w)[0]]  # weighted selection
-                elif parent == 'weighted':
-                    x = (x * w.reshape(n, 1)).sum(0) / w.sum()  # weighted combination
-
-                # Mutate
-                mp, s = 0.9, 0.2  # mutation probability, sigma
-                npr = np.random
-                npr.seed(int(time.time()))
-                g = np.array([1, 1, 1, 1, 1, 1, 1, 0, .1, 1, 0, 1, 1, 1, 1, 1, 1, 1])  # gains
-                ng = len(g)
-                v = np.ones(ng)
-                while all(v == 1):  # mutate until a change occurs (prevent duplicates)
-                    v = (g * (npr.random(ng) < mp) * npr.randn(ng) * npr.random() * s + 1).clip(0.3, 3.0)
-                for i, k in enumerate(hyp.keys()):  # plt.hist(v.ravel(), 300)
-                    hyp[k] = x[i + 7] * v[i]  # mutate
-
-            # Clip to limits
-            keys = ['lr0', 'iou_t', 'momentum', 'weight_decay', 'hsv_s', 'hsv_v', 'translate', 'scale', 'fl_gamma']
-            limits = [(1e-5, 1e-2), (0.00, 0.70), (0.60, 0.98), (0, 0.001), (0, .9), (0, .9), (0, .9), (0, .9), (0, 3)]
-            for k, v in zip(keys, limits):
-                hyp[k] = np.clip(hyp[k], v[0], v[1])
-
-            # Train mutation
-            results = train(hyp.copy())
-
-            # Write mutation results
-            common_utils.print_mutation(hyp, results, opt.bucket)
-
-            # Plot results
-            # plot_evolution_results(hyp)
+    tb_writer = SummaryWriter()
+    print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
+    train(hyp)
