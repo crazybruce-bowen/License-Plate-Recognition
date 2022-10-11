@@ -104,7 +104,6 @@ def kMeans (dataSet,k,distMeas = distEclud, createCent=randCent):
     return centroids , clusterAssment
 
 
-
 def biKmeans(dataSet,k,distMeas= distEclud):
     """
     这个函数首先将所有点作为一个簇，然后将该簇一分为二。之后选择其中一个簇继续进行划分，选择哪一个簇进行划分取决于对其划分是否可以最大程度降低SSE的值。
@@ -147,8 +146,8 @@ def split_licensePlate_character(plate_binary_img):
     输入： plate_gray_Arr是车牌的二值图，rows * cols的数组形式
     输出： character_list是由分割后的车牌单个字符图像二值图矩阵组成的列表
     """
-    plate_binary_Arr = np.array ( plate_binary_img )
-    row_list,col_list = np.nonzero (  plate_binary_Arr >= 255 )
+    plate_binary_Arr = np.array(plate_binary_img)
+    row_list,col_list = np.nonzero(plate_binary_Arr >= 255)
     dataArr = np.column_stack(( col_list,row_list))   #dataArr的第一列是列索引，第二列是行索引，要注意
     centroids, clusterAssment = biKmeans(dataArr, 7, distMeas=distEclud)
     centroids_sorted = sorted(centroids, key=lambda centroid: centroid[0])

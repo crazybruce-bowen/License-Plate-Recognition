@@ -23,8 +23,9 @@ def detect(save_img=False, **kwargs):
     :return:
     """
     # 参数捕获
+    print(f'-- kwargs -- {kwargs}')
     out = kwargs.get('output', 'inference/output')  # Str: 输出路径
-    source = kwargs.get('source', 'images/test_BW')  # Str: 检测路径 文件夹
+    source = kwargs.get('source', 'data/images/test_BW')  # Str: 检测路径 文件夹
     weights = kwargs.get('weights', 'weights/last.pt')  # Str: 最终训练模型系数
     save_txt = kwargs.get('save_txt', False)  # Bool: 是否保存文档
     imgsz = kwargs.get('imgsz', 640)  # Int: 图像大小
@@ -38,7 +39,6 @@ def detect(save_img=False, **kwargs):
     view_img = kwargs.get('view_img', False)  # 是否查看图片
 
     webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
-
     # Initialize pytorch use yaml file
     device = torch_utils.select_device(device)
     if os.path.exists(out):
