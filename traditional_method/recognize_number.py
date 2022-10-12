@@ -70,7 +70,8 @@ def distEclud (vecA, vecB):
     """
     return np.sum(abs(vecA - vecB))
 
-def randCent( dataSet, k):
+
+def randCent(dataSet, k):
     n = dataSet.shape[1]  #列数
     centroids = np.zeros((k,n)) #用来保存k个类的质心
     for j in range(n):
@@ -79,6 +80,7 @@ def randCent( dataSet, k):
         for i in range(k):
             centroids[i:,j] = minJ + rangeJ * (i+1)/k
     return centroids
+
 
 def kMeans (dataSet,k,distMeas = distEclud, createCent=randCent):
     m = dataSet.shape[0]
@@ -152,7 +154,7 @@ def split_licensePlate_character(plate_binary_img):
     centroids, clusterAssment = biKmeans(dataArr, 7, distMeas=distEclud)
     centroids_sorted = sorted(centroids, key=lambda centroid: centroid[0])
     split_list =[]
-    for centroids_ in  centroids_sorted:
+    for centroids_ in centroids_sorted:
         i = centroids.index(centroids_)
         current_class = dataArr[np.nonzero(clusterAssment[:,0]==i)[0],:]
         x_min,y_min = np.min(current_class,axis =0 )
@@ -234,7 +236,7 @@ def SVM_rocognition(dataArr, label_list):
     joblib.dump(svc,"based_SVM_character_train_model.m")  # 保存训练好的模型，通过svc = joblib.load("based_SVM_character_train_model.m")调用
 
 
-def SVM_rocognition_character( character_list ):
+def SVM_rocognition_character(character_list):
     character_Arr = np.zeros((len(character_list),400))
     #print(len(character_list))
     for i in range(len(character_list)):

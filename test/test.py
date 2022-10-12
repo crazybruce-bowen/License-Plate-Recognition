@@ -6,6 +6,7 @@ import os
 from PIL import Image
 import numpy as np
 import copy
+import cv2
 ## 项目方法
 path = r'D:\Learn\学习入口\大项目\车牌识别\MyProject'
 os.chdir(path)
@@ -14,6 +15,7 @@ from utils.common_utils import xywh2xyxy, plot_one_box, plot_images
 # -----------------------------
 # func 区域
 
+ 
 ## TODO 创建自己的dataloader
 class MyImageLoader:
     def __init__(self, img_path):
@@ -22,10 +24,10 @@ class MyImageLoader:
         """
         self.img = Image.open(img_path)
 
+
 class MyDataLoader:
     def __init__(self, path_folder):
         self.folder = path_folder
-        
 
 
 #%% 数据读入和图像处理
@@ -64,9 +66,9 @@ for i in res1:
         i['box_im'] = list()
 #%%
 # 车牌图像文字识别
-pass
+test = res1[-1]['box_img'][0]
 # 结果导出
-pass
+
 
 
 #%% 测试区域
@@ -74,4 +76,22 @@ list_box = list()
 for i in res1:
     if i['box_img']:
         list_box += i['box_img']
-        
+
+test = list_box[-1]
+
+# 转灰度
+img_L = test.convert('L')  # 转灰度
+im_L = np.array(img_L)
+# 高斯降噪   卷积，平滑处理
+im_gauss = cv2.GaussianBlur(im_L, (3, 3), 0, 0, cv2.BORDER_DEFAULT)
+img_gauss = Image.fromarray(im_gauss)
+# 形态学滤波 morphologyEx  暂时不知道是干嘛用的
+kernel = np.ones((5, 5), np.uint8)
+arr_img = im_gauss
+img_opening = cv2.morphologyEx(arr_img, cv2.MORPH_OPEN, kernel)
+# addWeighted 也不知道干嘛用的
+img_opening = cv2.addWeighted(arr_img, 1, img_opening, -1, 0)
+
+# 自动二值化
+ret, img_thresh = cv2.threshold(img_opening, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+

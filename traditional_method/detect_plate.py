@@ -54,7 +54,7 @@ def pic_ops(img):
         
     """
     arr_img = np.array(img)
-    arr_img1 = cv2.GaussianBlur(arr_img, (5,5), 0, 0, cv2.BORDER_DEFAULT)
+    arr_img1 = cv2.GaussianBlur(arr_img, (5, 5), 0, 0, cv2.BORDER_DEFAULT)
     kernel = np.ones((23, 23), np.uint8)
     img_opening = cv2.morphologyEx(arr_img, cv2.MORPH_OPEN, kernel)
     img_opening = cv2.addWeighted(arr_img, 1, img_opening, -1, 0)
