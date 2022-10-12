@@ -10,3 +10,5 @@ __pycache__
 .vs
 runs
 logs
+output
+image

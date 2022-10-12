@@ -84,7 +84,9 @@ def detect(save_img=False, **kwargs):
     t0 = time.time()
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
+    res = list()
     for path, img, im0s, vid_cap in dataset:
+        tmp = {'file_path': path, 'detect_box': list()}
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -133,7 +135,7 @@ def detect(save_img=False, **kwargs):
                     if save_img or view_img:  # Add bbox to image
                         label = '%s %.2f' % (names[int(cls)], conf)
                         common_utils.plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
-
+                    tmp['detect_box'].append(xywh)
             # Print time (inference + NMS)
             print('%sDone. (%.3fs)' % (s, t2 - t1))
 
@@ -159,18 +161,24 @@ def detect(save_img=False, **kwargs):
                         h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w, h))
                     vid_writer.write(im0)
+        res.append(tmp)
 
     if save_txt or save_img:
         print('Results saved to %s' % os.getcwd() + os.sep + out)
         if sys.platform == 'darwin':  # MacOS
             os.system('open ' + save_path)
-
     print('Done. (%.3fs)' % (time.time() - t0))
+    return res
 
 
-if __name__ == '__main__':
-    # 检查图像大小
+def detect_main(*args, **kwargs):
+    # 检查、调整图像大小
     pass
     # 运行
     with torch.no_grad():
-        detect()
+        res = detect(*args, **kwargs)
+    return res
+
+
+if __name__ == '__main__':
+    detect_main()
